@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/UniNetChat.Initiator/UniNetChat.Initiator.csproj" />
     <Project Path="src/UniNetChat.Protocol/UniNetChat.Protocol.csproj" />
+    <Project Path="src/UniNetChat.Recipient/UniNetChat.Recipient.csproj" />
   </Folder>
 </Solution>
