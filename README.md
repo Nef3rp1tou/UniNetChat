@@ -2,138 +2,162 @@
 
 A local network chat application using a custom application-layer protocol called **LNCP (Local Network Chat Protocol)**.
 
-## Overview
+## Features
 
-Uni-Net Chat enables peer-to-peer messaging between two computers on the same local network. It uses UDP broadcast for discovery and TCP for reliable message exchange.
-
-### How It Works
-
-1. **Discovery Phase**: The initiator broadcasts a UDP message to find a recipient by nickname
-2. **Connection Phase**: The recipient connects to the initiator via TCP
-3. **Handshake Phase**: Both parties exchange identity information
-4. **Chat Phase**: Messages are exchanged with acknowledgments
-5. **Closure Phase**: Either party can gracefully close the connection
-
-## Projects
-
-| Project | Description |
+| Feature | Description |
 |---------|-------------|
-| **UniNetChat.Protocol** | Shared library containing LNCP message types, parser, serializer, and state machine |
-| **UniNetChat.Initiator** | Console application that initiates chat sessions |
-| **UniNetChat.Recipient** | Console application that receives chat requests |
+| **Zero Configuration** | UDP broadcast discovery - no IP addresses needed |
+| **Reliable Messaging** | TCP with acknowledgments for every message |
+| **Heartbeat Detection** | Detects dead connections within 30 seconds |
+| **Chat Logging** | All sessions saved to local log files |
+| **Colored Console** | Visual distinction for status, errors, incoming/outgoing |
+| **Unit Tested** | 36 tests covering parser, serializer, state machine |
+| **Explicit Error Codes** | Machine-readable reject reasons for automation |
+| **Multi-line Messages** | Length-prefix framing supports any content |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         UniNetChat                              │
+├──────────────────────────┬──────────────────────────────────────┤
+│   UniNetChat.Protocol    │   Shared library                     │
+│   ├── Messages/          │   10 message types                   │
+│   ├── Parsing/           │   Parser + Serializer                │
+│   └── States/            │   State machine                      │
+├──────────────────────────┼──────────────────────────────────────┤
+│   UniNetChat.Initiator   │   Starts chat sessions               │
+├──────────────────────────┼──────────────────────────────────────┤
+│   UniNetChat.Recipient   │   Receives chat requests             │
+├──────────────────────────┼──────────────────────────────────────┤
+│   UniNetChat.Protocol.   │   36 unit tests                      │
+│   Tests                  │   xUnit framework                    │
+└──────────────────────────┴──────────────────────────────────────┘
+```
 
 ## Requirements
 
 - .NET 8.0 SDK or later
-- Two machines on the same local network (or two terminals on the same machine for testing)
-- UDP port 5000 open for discovery
-- TCP port 5001 (or custom) open for connections
+- Two machines on the same local network (or two terminals for testing)
+- UDP port 5000, TCP port 5001 open
 
-## Building
+## Quick Start
+
+### Build
 
 ```bash
 dotnet build
 ```
 
-## Usage
-
-### Starting the Recipient
-
-On the machine that will receive chat requests, start the recipient first:
+### Run Tests
 
 ```bash
-cd src/UniNetChat.Recipient
-dotnet run -- --nickname "Alice"
+dotnet test
 ```
 
-The recipient will listen for incoming discovery broadcasts on UDP port 5000.
+### Terminal 1 - Start Recipient
 
-### Starting the Initiator
-
-On the machine that will initiate the chat:
-
-```bash
-cd src/UniNetChat.Initiator
-dotnet run -- --nickname "Bob" --target "Alice"
-```
-
-The initiator will:
-1. Start a TCP listener on port 5001
-2. Broadcast a discovery message looking for "Alice"
-3. Wait for Alice to connect
-
-### Command Line Options
-
-**Initiator:**
-```
-  -n, --nickname <name>   Your nickname (default: Initiator)
-  -t, --target <name>     Target recipient's nickname
-  -p, --port <port>       TCP port to listen on (default: 5001)
-  -h, --help              Show help message
-```
-
-**Recipient:**
-```
-  -n, --nickname <name>   Your nickname (default: Recipient)
-  -h, --help              Show help message
-```
-
-### Chatting
-
-Once connected:
-- Type messages and press Enter to send
-- Type `/quit` to close the connection gracefully
-- Press Ctrl+C to exit
-
-### Testing on a Single Machine
-
-You can test on a single machine by opening two terminal windows:
-
-**Terminal 1 (Recipient):**
 ```bash
 dotnet run --project src/UniNetChat.Recipient -- -n Alice
 ```
 
-**Terminal 2 (Initiator):**
+### Terminal 2 - Start Initiator
+
 ```bash
 dotnet run --project src/UniNetChat.Initiator -- -n Bob -t Alice
 ```
 
-## Protocol
+### Chat!
 
-See [docs/PROTOCOL_SPECIFICATION.md](docs/PROTOCOL_SPECIFICATION.md) for the full LNCP protocol specification.
+- Type messages and press Enter
+- Type `/quit` to disconnect
+
+## Command Line Options
+
+### Initiator
+
+```
+-n, --nickname <name>   Your nickname (default: Initiator)
+-t, --target <name>     Target recipient's nickname
+-p, --port <port>       TCP port to listen on (default: 5001)
+--no-log                Disable chat logging
+-h, --help              Show help message
+```
+
+### Recipient
+
+```
+-n, --nickname <name>   Your nickname (default: Recipient)
+--no-log                Disable chat logging
+-h, --help              Show help message
+```
+
+## Protocol Highlights
+
+### Message Format (HTTP-style)
+
+```
+LNCP/1.0 MSG
+Request-Id: 550e8400-e29b-41d4-a716-446655440000
+From: Alice
+Timestamp: 2024-01-15T10:31:15Z
+Sequence: 1
+
+Hello, this message can
+span multiple lines!
+```
 
 ### Message Types
 
-| Type | Description |
-|------|-------------|
+| Type | Purpose |
+|------|---------|
 | DISCOVER | UDP broadcast to find recipient |
 | CONNECT | Recipient connects to initiator |
-| ACCEPT | Initiator accepts connection |
-| REJECT | Initiator rejects connection |
+| ACCEPT | Connection accepted |
+| REJECT | Connection rejected with reason code |
 | MSG | Chat text message |
 | ACK | Message acknowledgment |
-| CLOSE | Request to close connection |
-| CLOSED | Acknowledgment of closure |
+| CLOSE | Graceful termination request |
+| CLOSED | Termination acknowledged |
+| HEARTBEAT | Connection liveness check |
+| HEARTBEAT_ACK | Heartbeat response |
 
-## Troubleshooting
+### Error Codes
 
-### Discovery Not Working
+| Code | Description |
+|------|-------------|
+| `uuid_mismatch` | Wrong session ID |
+| `deadline_expired` | Too late to connect |
+| `malformed_message` | Parse error |
+| `user_declined` | Manual rejection |
+| `already_connected` | Busy in another session |
 
-- Ensure both machines are on the same network subnet
-- Check firewall settings for UDP port 5000
-- Verify the recipient is running before starting the initiator
+## Chat Logs
 
-### Connection Failed
+Sessions are logged to:
+```
+%LOCALAPPDATA%\UniNetChat\logs\chat_<local>_<remote>_<timestamp>.log
+```
 
-- Ensure TCP port 5001 is not blocked by firewall
-- Check that the nickname matches exactly (case-insensitive)
-- Verify the discovery deadline hasn't expired
+## Documentation
 
-### Messages Not Sending
+See [docs/PROTOCOL_SPECIFICATION.md](docs/PROTOCOL_SPECIFICATION.md) for the complete protocol specification including:
 
-- Ensure the connection is established (look for "Connected" status)
-- Check for network connectivity issues
+- Design rationale and comparisons
+- Message format and examples
+- State machine diagrams
+- Error handling matrix
+- Security considerations
+
+## Why This Design?
+
+| Choice | Rationale |
+|--------|-----------|
+| HTTP-style headers | Human-readable, no JSON parser needed |
+| Length-prefix framing | Supports multi-line messages and binary |
+| Separate library | Reusable, testable, maintainable |
+| Explicit error codes | Machine-readable for automation |
+| Heartbeat messages | Detects dead connections (TCP keepalive is 2 hours!) |
 
 ## License
 

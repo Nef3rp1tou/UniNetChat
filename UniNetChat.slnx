@@ -4,4 +4,7 @@
     <Project Path="src/UniNetChat.Protocol/UniNetChat.Protocol.csproj" />
     <Project Path="src/UniNetChat.Recipient/UniNetChat.Recipient.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UniNetChat.Protocol.Tests/UniNetChat.Protocol.Tests.csproj" />
+  </Folder>
 </Solution>

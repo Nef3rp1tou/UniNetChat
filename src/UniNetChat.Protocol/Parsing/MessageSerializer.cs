@@ -104,6 +104,8 @@ public static class MessageSerializer
                 break;
 
             case ClosedMessage:
+            case HeartbeatMessage:
+            case HeartbeatAckMessage:
                 // No additional headers
                 break;
         }

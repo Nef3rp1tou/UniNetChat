@@ -138,6 +138,8 @@ public static class MessageParser
             MessageType.Ack => CreateAckMessage(requestId, headers),
             MessageType.Close => CreateCloseMessage(requestId, headers),
             MessageType.Closed => new ClosedMessage(requestId),
+            MessageType.Heartbeat => new HeartbeatMessage(requestId),
+            MessageType.HeartbeatAck => new HeartbeatAckMessage(requestId),
             _ => throw new FormatException($"Unknown message type: {type}")
         };
     }
@@ -168,7 +170,8 @@ public static class MessageParser
     private static RejectMessage CreateRejectMessage(Guid requestId, Dictionary<string, string> headers)
     {
         headers.TryGetValue(LncpConstants.Headers.Reason, out var reason);
-        return new RejectMessage(requestId, reason ?? string.Empty);
+        var (code, text) = RejectMessage.ParseReason(reason ?? string.Empty);
+        return new RejectMessage(requestId, code, text);
     }
 
     private static TextMessage CreateTextMessage(Guid requestId, Dictionary<string, string> headers, string body)

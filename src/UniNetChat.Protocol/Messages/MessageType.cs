@@ -43,5 +43,15 @@ public enum MessageType
     /// <summary>
     /// TCP acknowledgment of connection closure (bidirectional).
     /// </summary>
-    Closed
+    Closed,
+
+    /// <summary>
+    /// TCP heartbeat to verify connection is alive.
+    /// </summary>
+    Heartbeat,
+
+    /// <summary>
+    /// TCP acknowledgment of heartbeat.
+    /// </summary>
+    HeartbeatAck
 }

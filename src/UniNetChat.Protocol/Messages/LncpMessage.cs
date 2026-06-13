@@ -38,6 +38,8 @@ public abstract class LncpMessage
         MessageType.Ack => "ACK",
         MessageType.Close => "CLOSE",
         MessageType.Closed => "CLOSED",
+        MessageType.Heartbeat => "HEARTBEAT",
+        MessageType.HeartbeatAck => "HEARTBEAT_ACK",
         _ => throw new ArgumentOutOfRangeException()
     };
 
@@ -56,6 +58,8 @@ public abstract class LncpMessage
             "ACK" => MessageType.Ack,
             "CLOSE" => MessageType.Close,
             "CLOSED" => MessageType.Closed,
+            "HEARTBEAT" => MessageType.Heartbeat,
+            "HEARTBEAT_ACK" => MessageType.HeartbeatAck,
             _ => throw new ArgumentException($"Unknown message type: {typeString}")
         };
     }

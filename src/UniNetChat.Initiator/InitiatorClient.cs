@@ -87,7 +87,7 @@ public class InitiatorClient : IDisposable
 
                 if (connectMessage.RequestId != _currentRequestId)
                 {
-                    await SendRejectAsync("Invalid request ID");
+                    await SendRejectAsync(RejectReason.UuidMismatch);
                     return false;
                 }
 
@@ -271,9 +271,9 @@ public class InitiatorClient : IDisposable
         return MessageParser.Parse(buffer);
     }
 
-    private async Task SendRejectAsync(string reason)
+    private async Task SendRejectAsync(RejectReason reason, string? details = null)
     {
-        var reject = new RejectMessage(_currentRequestId, reason);
+        var reject = new RejectMessage(_currentRequestId, reason, details);
         await SendMessageAsync(reject);
         await CleanupAsync();
     }

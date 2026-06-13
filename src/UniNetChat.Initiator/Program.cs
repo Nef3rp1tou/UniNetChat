@@ -5,6 +5,7 @@ using UniNetChat.Protocol;
 string nickname = "Initiator";
 string? targetNickname = null;
 int port = LncpConstants.DefaultTcpPort;
+bool enableLogging = true;
 
 for (int i = 0; i < args.Length; i++)
 {
@@ -19,37 +20,48 @@ for (int i = 0; i < args.Length; i++)
         case "--port" or "-p":
             if (i + 1 < args.Length) port = int.Parse(args[++i]);
             break;
+        case "--no-log":
+            enableLogging = false;
+            break;
         case "--help" or "-h":
             PrintHelp();
             return;
     }
 }
 
-Console.WriteLine("=== Uni-Net Chat (Initiator) ===");
-Console.WriteLine($"Your nickname: {nickname}");
-Console.WriteLine();
+ConsoleHelper.WriteHeader("Uni-Net Chat (Initiator)");
+ConsoleHelper.WriteSystem($"Your nickname: {nickname}");
+ConsoleHelper.WriteSeparator();
 
 if (string.IsNullOrEmpty(targetNickname))
 {
-    Console.Write("Enter target nickname to find: ");
-    targetNickname = Console.ReadLine()?.Trim();
+    targetNickname = ConsoleHelper.Prompt("Enter target nickname to find: ", ConsoleColor.Yellow)?.Trim();
 
     if (string.IsNullOrEmpty(targetNickname))
     {
-        Console.WriteLine("Error: Target nickname is required.");
+        ConsoleHelper.WriteError("Target nickname is required.");
         return;
     }
 }
 
 using var client = new InitiatorClient(nickname, port);
+ChatLogger? logger = null;
 
 // Set up event handlers
-client.StatusChanged += status => Console.WriteLine($"[Status] {status}");
-client.MessageReceived += (from, text) => Console.WriteLine($"[{from}] {text}");
-client.Disconnected += () => Console.WriteLine("[Disconnected]");
+client.StatusChanged += status => ConsoleHelper.WriteStatus(status);
+client.MessageReceived += (from, text) =>
+{
+    ConsoleHelper.WriteIncoming(from, text);
+    logger?.LogReceived(from, text);
+};
+client.Disconnected += () =>
+{
+    ConsoleHelper.WriteWarning("Disconnected");
+    logger?.LogEnd("Connection closed");
+};
 
 // Discover and connect
-Console.WriteLine($"Searching for '{targetNickname}'...");
+ConsoleHelper.WriteStatus($"Searching for '{targetNickname}'...");
 
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) =>
@@ -62,22 +74,36 @@ var connected = await client.DiscoverAndConnectAsync(targetNickname, cancellatio
 
 if (!connected)
 {
-    Console.WriteLine("Failed to connect. Make sure the recipient is running.");
+    ConsoleHelper.WriteError("Failed to connect. Make sure the recipient is running.");
     return;
 }
 
-Console.WriteLine();
-Console.WriteLine("Connected! Type messages and press Enter to send.");
-Console.WriteLine("Type /quit to disconnect.");
-Console.WriteLine();
+// Initialize logger after connection
+if (enableLogging)
+{
+    try
+    {
+        logger = new ChatLogger(Guid.NewGuid(), nickname, client.ConnectedTo);
+        logger.LogEvent("Session started");
+        ConsoleHelper.WriteSystem($"Chat log: {logger.LogPath}");
+    }
+    catch
+    {
+        ConsoleHelper.WriteWarning("Could not create chat log file");
+    }
+}
+
+ConsoleHelper.WriteSeparator();
+ConsoleHelper.WriteSuccess($"Connected to '{client.ConnectedTo}'");
+ConsoleHelper.WriteSystem("Type messages and press Enter to send. Type /quit to disconnect.");
+ConsoleHelper.WriteSeparator();
 
 // Main chat loop
 while (client.IsConnected && !cts.Token.IsCancellationRequested)
 {
     try
     {
-        Console.Write($"[{nickname}] ");
-        var input = Console.ReadLine();
+        var input = ConsoleHelper.Prompt($"[{nickname}] ", ConsoleColor.White);
 
         if (string.IsNullOrEmpty(input))
         {
@@ -86,15 +112,16 @@ while (client.IsConnected && !cts.Token.IsCancellationRequested)
 
         if (input.Equals("/quit", StringComparison.OrdinalIgnoreCase))
         {
+            logger?.LogEvent("User initiated disconnect");
             await client.CloseAsync("User quit");
             break;
         }
 
         await client.SendTextAsync(input);
+        logger?.LogSent(nickname, input);
     }
     catch (InvalidOperationException)
     {
-        // Disconnected
         break;
     }
     catch (OperationCanceledException)
@@ -103,7 +130,8 @@ while (client.IsConnected && !cts.Token.IsCancellationRequested)
     }
 }
 
-Console.WriteLine("Goodbye!");
+logger?.Dispose();
+ConsoleHelper.WriteSystem("Goodbye!");
 
 static void PrintHelp()
 {
@@ -115,5 +143,6 @@ static void PrintHelp()
     Console.WriteLine("  -n, --nickname <name>   Your nickname (default: Initiator)");
     Console.WriteLine("  -t, --target <name>     Target recipient's nickname");
     Console.WriteLine("  -p, --port <port>       TCP port to listen on (default: 5001)");
+    Console.WriteLine("  --no-log                Disable chat logging");
     Console.WriteLine("  -h, --help              Show this help message");
 }
