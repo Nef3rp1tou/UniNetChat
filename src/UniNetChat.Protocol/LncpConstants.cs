@@ -61,5 +61,7 @@ public static class LncpConstants
         public const string Timestamp = "Timestamp";
         public const string Sequence = "Sequence";
         public const string Reason = "Reason";
+        public const string OldNickname = "Old-Nickname";
+        public const string NewNickname = "New-Nickname";
     }
 }

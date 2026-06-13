@@ -53,5 +53,15 @@ public enum MessageType
     /// <summary>
     /// TCP acknowledgment of heartbeat.
     /// </summary>
-    HeartbeatAck
+    HeartbeatAck,
+
+    /// <summary>
+    /// TCP notification of nickname change.
+    /// </summary>
+    NickChange,
+
+    /// <summary>
+    /// TCP acknowledgment of nickname change.
+    /// </summary>
+    NickAck
 }

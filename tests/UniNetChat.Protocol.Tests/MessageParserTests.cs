@@ -124,7 +124,9 @@ public class MessageParserTests
             new CloseMessage(requestId, "Done"),
             new ClosedMessage(requestId),
             new HeartbeatMessage(requestId),
-            new HeartbeatAckMessage(requestId)
+            new HeartbeatAckMessage(requestId),
+            new NickChangeMessage(requestId, "Alice", "Alice2"),
+            new NickAckMessage(requestId, "Alice2")
         };
 
         foreach (var original in messages)

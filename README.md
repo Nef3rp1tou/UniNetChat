@@ -8,12 +8,12 @@ A local network chat application using a custom application-layer protocol calle
 |---------|-------------|
 | **Zero Configuration** | UDP broadcast discovery - no IP addresses needed |
 | **Reliable Messaging** | TCP with acknowledgments for every message |
-| **Heartbeat Detection** | Detects dead connections within 30 seconds |
+| **Heartbeat Detection** | Detects dead connections automatically |
+| **Nickname Change** | Change your nickname mid-chat with `/nick` |
 | **Chat Logging** | All sessions saved to local log files |
 | **Colored Console** | Visual distinction for status, errors, incoming/outgoing |
 | **Unit Tested** | 36 tests covering parser, serializer, state machine |
-| **Explicit Error Codes** | Machine-readable reject reasons for automation |
-| **Multi-line Messages** | Length-prefix framing supports any content |
+| **Retry on Failure** | Re-enter target nickname if discovery fails |
 
 ## Architecture
 
@@ -22,7 +22,7 @@ A local network chat application using a custom application-layer protocol calle
 │                         UniNetChat                              │
 ├──────────────────────────┬──────────────────────────────────────┤
 │   UniNetChat.Protocol    │   Shared library                     │
-│   ├── Messages/          │   10 message types                   │
+│   ├── Messages/          │   12 message types                   │
 │   ├── Parsing/           │   Parser + Serializer                │
 │   └── States/            │   State machine                      │
 ├──────────────────────────┼──────────────────────────────────────┤
@@ -70,7 +70,15 @@ dotnet run --project src/UniNetChat.Initiator -- -n Bob -t Alice
 ### Chat!
 
 - Type messages and press Enter
-- Type `/quit` to disconnect
+- Use commands below
+
+## In-Chat Commands
+
+| Command | Description |
+|---------|-------------|
+| `/nick <name>` | Change your nickname |
+| `/help` | Show available commands |
+| `/quit` | Disconnect and exit |
 
 ## Command Line Options
 
@@ -107,20 +115,17 @@ Hello, this message can
 span multiple lines!
 ```
 
-### Message Types
+### Message Types (12)
 
 | Type | Purpose |
 |------|---------|
 | DISCOVER | UDP broadcast to find recipient |
 | CONNECT | Recipient connects to initiator |
-| ACCEPT | Connection accepted |
-| REJECT | Connection rejected with reason code |
-| MSG | Chat text message |
-| ACK | Message acknowledgment |
-| CLOSE | Graceful termination request |
-| CLOSED | Termination acknowledged |
-| HEARTBEAT | Connection liveness check |
-| HEARTBEAT_ACK | Heartbeat response |
+| ACCEPT / REJECT | Connection response |
+| MSG / ACK | Chat messages with acknowledgment |
+| CLOSE / CLOSED | Graceful termination |
+| HEARTBEAT / HEARTBEAT_ACK | Connection health |
+| NICK_CHANGE / NICK_ACK | Nickname updates |
 
 ### Error Codes
 
@@ -141,24 +146,15 @@ Sessions are logged to:
 
 ## Documentation
 
-See [docs/PROTOCOL_SPECIFICATION.md](docs/PROTOCOL_SPECIFICATION.md) for the complete protocol specification including:
+- [Protocol Specification](docs/PROTOCOL_SPECIFICATION.md) - Full protocol details
+- [Diagrams](docs/diagrams/) - Sequence, state machine, architecture diagrams
 
-- Design rationale and comparisons
-- Message format and examples
-- State machine diagrams
-- Error handling matrix
-- Security considerations
+## Design Rationale
 
-## Why This Design?
-
-| Choice | Rationale |
-|--------|-----------|
-| HTTP-style headers | Human-readable, no JSON parser needed |
-| Length-prefix framing | Supports multi-line messages and binary |
+| Choice | Why |
+|--------|-----|
+| HTTP-style headers | Human-readable, debuggable, no JSON parser needed |
+| Length-prefix framing | Supports multi-line messages and binary content |
 | Separate library | Reusable, testable, maintainable |
 | Explicit error codes | Machine-readable for automation |
-| Heartbeat messages | Detects dead connections (TCP keepalive is 2 hours!) |
-
-## License
-
-MIT License
+| Heartbeat messages | TCP keepalive default is 2 hours - too slow |

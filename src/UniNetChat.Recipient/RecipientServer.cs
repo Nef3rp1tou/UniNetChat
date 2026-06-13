@@ -32,6 +32,7 @@ public class RecipientServer : IDisposable
     public event Action<string>? StatusChanged;
     public event Action<string, IPEndPoint>? ConnectionRequest;
     public event Action? Disconnected;
+    public event Action<string, string>? NicknameChanged;
 
     public RecipientServer(string nickname)
     {
@@ -207,6 +208,20 @@ public class RecipientServer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Changes the local nickname and notifies the peer.
+    /// </summary>
+    public async Task ChangeNicknameAsync(string oldNickname, string newNickname)
+    {
+        if (_state != RecipientState.Connected)
+        {
+            throw new InvalidOperationException("Not connected");
+        }
+
+        var message = new NickChangeMessage(_currentRequestId, oldNickname, newNickname);
+        await SendMessageAsync(message);
+    }
+
     private async Task ReceiveMessagesAsync(CancellationToken cancellationToken)
     {
         try
@@ -232,6 +247,27 @@ public class RecipientServer : IDisposable
 
                     case AckMessage:
                         // Message acknowledged
+                        break;
+
+                    case NickChangeMessage nickChange:
+                        // Peer changed their nickname
+                        _connectedNickname = nickChange.NewNickname;
+                        var nickAck = new NickAckMessage(_currentRequestId, nickChange.NewNickname);
+                        await SendMessageAsync(nickAck);
+                        NicknameChanged?.Invoke(nickChange.OldNickname, nickChange.NewNickname);
+                        break;
+
+                    case NickAckMessage:
+                        // Our nickname change was acknowledged
+                        break;
+
+                    case HeartbeatMessage:
+                        var heartbeatAck = new HeartbeatAckMessage(_currentRequestId);
+                        await SendMessageAsync(heartbeatAck);
+                        break;
+
+                    case HeartbeatAckMessage:
+                        // Heartbeat acknowledged
                         break;
                 }
             }

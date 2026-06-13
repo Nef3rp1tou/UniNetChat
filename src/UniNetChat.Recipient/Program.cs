@@ -48,6 +48,11 @@ server.Disconnected += () =>
     logger = null;
     ConsoleHelper.WriteStatus("Waiting for new connections...");
 };
+server.NicknameChanged += (oldNick, newNick) =>
+{
+    ConsoleHelper.WriteStatus($"Peer changed nickname: {oldNick} -> {newNick}");
+    logger?.LogEvent($"Peer renamed: {oldNick} -> {newNick}");
+};
 
 Console.CancelKeyPress += (_, e) =>
 {
@@ -59,7 +64,7 @@ Console.CancelKeyPress += (_, e) =>
 var listenTask = Task.Run(() => server.StartListeningAsync(cts.Token));
 
 ConsoleHelper.WriteStatus("Waiting for connections...");
-ConsoleHelper.WriteSystem("Press Ctrl+C to exit.");
+ConsoleHelper.WriteSystem("Commands: /nick <name>, /help, /quit");
 ConsoleHelper.WriteSeparator();
 
 // Main chat loop
@@ -79,15 +84,53 @@ while (!cts.Token.IsCancellationRequested)
             continue;
         }
 
-        if (input.Equals("/quit", StringComparison.OrdinalIgnoreCase))
+        // Handle commands
+        if (input.StartsWith("/"))
         {
-            if (server.IsConnected)
+            var parts = input.Split(' ', 2);
+            var command = parts[0].ToLowerInvariant();
+
+            switch (command)
             {
-                logger?.LogEvent("User initiated disconnect");
-                await server.CloseAsync("User quit");
+                case "/quit":
+                    if (server.IsConnected)
+                    {
+                        logger?.LogEvent("User initiated disconnect");
+                        await server.CloseAsync("User quit");
+                    }
+                    cts.Cancel();
+                    goto exitLoop;
+
+                case "/nick":
+                    if (!server.IsConnected)
+                    {
+                        ConsoleHelper.WriteWarning("Not connected. Cannot change nickname.");
+                        continue;
+                    }
+                    if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[1]))
+                    {
+                        ConsoleHelper.WriteWarning("Usage: /nick <new_nickname>");
+                        continue;
+                    }
+                    var newNick = parts[1].Trim();
+                    var oldNick = nickname;
+                    await server.ChangeNicknameAsync(oldNick, newNick);
+                    nickname = newNick;
+                    logger?.LogEvent($"Changed nickname: {oldNick} -> {newNick}");
+                    ConsoleHelper.WriteSuccess($"Nickname changed to '{newNick}'");
+                    continue;
+
+                case "/help":
+                    ConsoleHelper.WriteSystem("Available commands:");
+                    ConsoleHelper.WriteSystem("  /nick <name>  - Change your nickname");
+                    ConsoleHelper.WriteSystem("  /quit         - Disconnect and exit");
+                    ConsoleHelper.WriteSystem("  /help         - Show this help");
+                    continue;
+
+                default:
+                    ConsoleHelper.WriteWarning($"Unknown command: {command}. Type /help for available commands.");
+                    continue;
             }
-            cts.Cancel();
-            break;
         }
 
         if (!server.IsConnected)
@@ -125,6 +168,7 @@ while (!cts.Token.IsCancellationRequested)
     }
 }
 
+exitLoop:
 logger?.Dispose();
 ConsoleHelper.WriteSystem("Goodbye!");
 
@@ -138,4 +182,9 @@ static void PrintHelp()
     Console.WriteLine("  -n, --nickname <name>   Your nickname (default: Recipient)");
     Console.WriteLine("  --no-log                Disable chat logging");
     Console.WriteLine("  -h, --help              Show this help message");
+    Console.WriteLine();
+    Console.WriteLine("In-chat commands:");
+    Console.WriteLine("  /nick <name>            Change your nickname");
+    Console.WriteLine("  /quit                   Disconnect and exit");
+    Console.WriteLine("  /help                   Show available commands");
 }

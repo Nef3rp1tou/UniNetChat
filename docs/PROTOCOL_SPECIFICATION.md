@@ -136,6 +136,8 @@ UDP datagrams are self-delimiting (no length prefix needed).
 | `CLOSED` | TCP | Bidirectional | Termination acknowledgment |
 | `HEARTBEAT` | TCP | Bidirectional | Connection liveness check |
 | `HEARTBEAT_ACK` | TCP | Bidirectional | Heartbeat response |
+| `NICK_CHANGE` | TCP | Bidirectional | Notify peer of nickname change |
+| `NICK_ACK` | TCP | Bidirectional | Acknowledge nickname change |
 
 **Legend**: I = Initiator, R = Recipient
 
@@ -152,6 +154,8 @@ UDP datagrams are self-delimiting (no length prefix needed).
 | `Port` | DISCOVER | TCP port initiator is listening on |
 | `Timestamp` | MSG, ACK | ISO 8601 message timestamp |
 | `Sequence` | MSG, ACK | Message sequence number (1-based) |
+| `Old-Nickname` | NICK_CHANGE | Previous nickname |
+| `New-Nickname` | NICK_CHANGE | New nickname |
 | `Reason` | REJECT, CLOSE | Error code with optional details |
 
 ---
@@ -215,6 +219,25 @@ Reason: deadline_expired:Connection attempt was 30 seconds late
 ```
 LNCP/1.0 HEARTBEAT
 Request-Id: 550e8400-e29b-41d4-a716-446655440000
+
+```
+
+### NICK_CHANGE
+
+```
+LNCP/1.0 NICK_CHANGE
+Request-Id: 550e8400-e29b-41d4-a716-446655440000
+Old-Nickname: Alice
+New-Nickname: Alice_AFK
+
+```
+
+### NICK_ACK
+
+```
+LNCP/1.0 NICK_ACK
+Request-Id: 550e8400-e29b-41d4-a716-446655440000
+Nickname: Alice_AFK
 
 ```
 

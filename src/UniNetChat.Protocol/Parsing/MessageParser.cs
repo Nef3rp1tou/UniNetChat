@@ -140,6 +140,8 @@ public static class MessageParser
             MessageType.Closed => new ClosedMessage(requestId),
             MessageType.Heartbeat => new HeartbeatMessage(requestId),
             MessageType.HeartbeatAck => new HeartbeatAckMessage(requestId),
+            MessageType.NickChange => CreateNickChangeMessage(requestId, headers),
+            MessageType.NickAck => CreateNickAckMessage(requestId, headers),
             _ => throw new FormatException($"Unknown message type: {type}")
         };
     }
@@ -202,6 +204,20 @@ public static class MessageParser
         return new CloseMessage(requestId, reason ?? string.Empty);
     }
 
+    private static NickChangeMessage CreateNickChangeMessage(Guid requestId, Dictionary<string, string> headers)
+    {
+        return new NickChangeMessage(
+            requestId,
+            GetRequiredHeader(headers, LncpConstants.Headers.OldNickname),
+            GetRequiredHeader(headers, LncpConstants.Headers.NewNickname)
+        );
+    }
+
+    private static NickAckMessage CreateNickAckMessage(Guid requestId, Dictionary<string, string> headers)
+    {
+        return new NickAckMessage(requestId, GetRequiredHeader(headers, LncpConstants.Headers.Nickname));
+    }
+
     private static string GetRequiredHeader(Dictionary<string, string> headers, string name)
     {
         if (!headers.TryGetValue(name, out var value))
@@ -220,6 +236,8 @@ public static class MessageParser
                name.Equals(LncpConstants.Headers.From, StringComparison.OrdinalIgnoreCase) ||
                name.Equals(LncpConstants.Headers.Timestamp, StringComparison.OrdinalIgnoreCase) ||
                name.Equals(LncpConstants.Headers.Sequence, StringComparison.OrdinalIgnoreCase) ||
-               name.Equals(LncpConstants.Headers.Reason, StringComparison.OrdinalIgnoreCase);
+               name.Equals(LncpConstants.Headers.Reason, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(LncpConstants.Headers.OldNickname, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(LncpConstants.Headers.NewNickname, StringComparison.OrdinalIgnoreCase);
     }
 }

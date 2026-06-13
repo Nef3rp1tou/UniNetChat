@@ -108,6 +108,15 @@ public static class MessageSerializer
             case HeartbeatAckMessage:
                 // No additional headers
                 break;
+
+            case NickChangeMessage nickChange:
+                WriteHeader(sb, LncpConstants.Headers.OldNickname, nickChange.OldNickname);
+                WriteHeader(sb, LncpConstants.Headers.NewNickname, nickChange.NewNickname);
+                break;
+
+            case NickAckMessage nickAck:
+                WriteHeader(sb, LncpConstants.Headers.Nickname, nickAck.Nickname);
+                break;
         }
     }
 
